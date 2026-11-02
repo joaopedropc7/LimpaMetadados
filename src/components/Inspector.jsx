@@ -1,7 +1,7 @@
 import { useImperativeHandle } from 'react'
 import { inspectMetadata } from '../lib/inspectMetadata'
 import { useImageQueue } from '../useImageQueue'
-import Dropzone from './Dropzone'
+import Dropzone, { Preview } from './Dropzone'
 
 const VERDICTS = {
   clean: { label: 'Limpa', text: 'Nenhum metadado identificável encontrado.' },
@@ -95,8 +95,9 @@ export default function Inspector({ ref }) {
       <Dropzone count={items.length} onFiles={addFiles} hint="Análise feita no navegador, nada é alterado" />
 
       <p className="note">
-        A verificação lê os metadados do arquivo (EXIF, GPS, XMP, IPTC, C2PA, textos de PNG). Marcas d&apos;água
-        invisíveis gravadas nos pixels, como o SynthID do Google, não aparecem nos metadados e não podem ser detectadas
+        A verificação lê os metadados do arquivo (EXIF, GPS, XMP, IPTC, C2PA, textos de PNG e, em vídeos, QuickTime,
+        trilhas de GPS/sensores e tags WebM/MKV). Marcas d&apos;água invisíveis gravadas na imagem, como o SynthID do
+        Google, não aparecem nos metadados e não podem ser detectadas
         nem removidas aqui.
       </p>
 
@@ -122,7 +123,7 @@ export default function Inspector({ ref }) {
           <ul className="report-list">
             {items.map((item) => (
               <li key={item.id} className={`card report ${item.status}`}>
-                <img src={item.preview} alt="" />
+                <Preview item={item} />
                 <div className="info">
                   <span className="name" title={item.file.name}>
                     {item.file.name}

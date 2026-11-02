@@ -21,8 +21,8 @@ export default function App() {
       <header>
         <h1>Limpador de Metadados</h1>
         <p className="subtitle">
-          Remove EXIF, GPS, XMP, IPTC, C2PA e comentários das suas imagens e verifica se sobrou algo, inclusive
-          marcações de IA. Tudo acontece no seu navegador — nada é enviado para servidor.
+          Remove EXIF, GPS, XMP, IPTC, C2PA e comentários das suas imagens e vídeos e verifica se sobrou algo,
+          inclusive marcações de IA. Tudo acontece no seu navegador — nada é enviado para servidor.
         </p>
       </header>
 

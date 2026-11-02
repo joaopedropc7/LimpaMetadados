@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 export const MAX_FILES = 20
 
-// Lista de até MAX_FILES imagens, cada uma processada por `process` ao entrar
+const isImage = (f) => f.type.startsWith('image/') || /\.(heic|heif|avif)$/i.test(f.name)
+const isVideo = (f) => f.type.startsWith('video/') || /\.(mp4|m4v|mov|3gp|webm|mkv)$/i.test(f.name)
+
+// Lista de até MAX_FILES imagens/vídeos, cada item processado por `process` ao entrar
 export function useImageQueue(process) {
   const [items, setItems] = useState([])
   const [warning, setWarning] = useState('')
@@ -20,14 +23,14 @@ export function useImageQueue(process) {
   const addFiles = useCallback(
     (fileList) => {
       const files = [...fileList]
-      const images = files.filter((f) => f.type.startsWith('image/') || /\.(heic|heif|avif)$/i.test(f.name))
+      const media = files.filter((f) => isImage(f) || isVideo(f))
       const free = MAX_FILES - itemsRef.current.length
-      const accepted = images.slice(0, Math.max(free, 0))
+      const accepted = media.slice(0, Math.max(free, 0))
 
       const ignored = files.length - accepted.length
       setWarning(
         ignored > 0
-          ? `${ignored} arquivo(s) ignorado(s): limite de ${MAX_FILES} imagens ou formato que não é imagem.`
+          ? `${ignored} arquivo(s) ignorado(s): limite de ${MAX_FILES} arquivos ou formato que não é imagem/vídeo.`
           : '',
       )
 
@@ -35,6 +38,7 @@ export function useImageQueue(process) {
         id: crypto.randomUUID(),
         file,
         preview: URL.createObjectURL(file),
+        video: isVideo(file),
         status: 'processing',
       }))
       itemsRef.current = [...itemsRef.current, ...newItems]

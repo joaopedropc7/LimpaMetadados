@@ -24,7 +24,7 @@ export default function Dropzone({ count, onFiles, hint }) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,.heic,.heif"
+        accept="image/*,video/*,.heic,.heif,.mkv,.mov"
         multiple
         hidden
         onChange={(e) => {
@@ -32,10 +32,15 @@ export default function Dropzone({ count, onFiles, hint }) {
           e.target.value = ''
         }}
       />
-      <strong>{full ? 'Limite atingido' : 'Arraste as imagens aqui ou clique para selecionar'}</strong>
+      <strong>{full ? 'Limite atingido' : 'Arraste imagens ou vídeos aqui ou clique para selecionar'}</strong>
       <span>
-        {count}/{MAX_FILES} imagens · {hint}
+        {count}/{MAX_FILES} arquivos · {hint}
       </span>
     </div>
   )
+}
+
+// Miniatura do card: imagem ou primeiro quadro do vídeo
+export function Preview({ item }) {
+  return item.video ? <video src={item.preview} muted playsInline preload="metadata" /> : <img src={item.preview} alt="" />
 }

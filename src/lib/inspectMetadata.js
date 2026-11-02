@@ -11,6 +11,7 @@ import {
   pngChunks,
   webpChunks,
 } from './imageFormat'
+import { detectVideoFormat, inspectVideo } from './video'
 
 const utf8 = new TextDecoder('utf-8')
 const latin1 = new TextDecoder('latin1')
@@ -87,7 +88,7 @@ const GPS_TAGS = {
 const POINTER_TAGS = new Set([0x8769, 0x8825, 0xa005, 0x0201, 0x0202])
 const TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8 }
 
-function isPrintable(bytes) {
+export function isPrintable(bytes) {
   if (bytes.length === 0) return false
   let ok = 0
   for (const b of bytes) if ((b >= 0x20 && b < 0x7f) || b === 0x0a || b === 0x0d || b === 0x09 || b >= 0xc0) ok++
@@ -185,7 +186,7 @@ function parseTiff(bytes, tiff, end, report) {
 
 // ---------- XMP ----------
 
-function parseXmp(xml, report) {
+export function parseXmp(xml, report) {
   report.add('XMP', 'Pacote XMP completo', xml.trim())
   const seen = new Set()
   const push = (key, value) => {
@@ -262,7 +263,7 @@ function parsePhotoshop(bytes, start, end, report) {
 
 // ---------- C2PA ----------
 
-function parseC2pa(raw, report) {
+export function parseC2pa(raw, report) {
   // O manifesto é binário (JUMBF/CBOR); extraímos os textos legíveis
   const strings = [...new Set(latin1.decode(raw).match(/[\x20-\x7e]{5,}/g) ?? [])]
   report.c2pa = true
@@ -432,7 +433,11 @@ const AI_GENERATORS = [
   [/\bcraiyon\b/i, 'Craiyon'],
   [/\bmeta ai\b|\bimagine with meta\b/i, 'Meta AI'],
   [/\bkling\b|\bhailuo\b|\bminimax\b/i, 'Kling/Hailuo'],
-  [/\bseedream\b|\bdreamina\b/i, 'Seedream/Dreamina'],
+  [/\bseedream\b|\bseedance\b|\bdreamina\b/i, 'Seedream/Seedance/Dreamina'],
+  [/\bgoogle veo\b|\bveo[\s-]?[23]\b/i, 'Google Veo'],
+  [/\bpika\s?labs\b|\bpika\.art\b/i, 'Pika'],
+  [/\bluma\s?(ai|labs)\b|\bdream machine\b/i, 'Luma Dream Machine'],
+  [/\bsynthesia\b|\bheygen\b|\bhunyuan\b|\bvidu\b/i, 'Gerador de vídeo por IA'],
 ]
 
 const AI_TEXT_KEYS = new Set([
@@ -441,12 +446,13 @@ const AI_TEXT_KEYS = new Set([
 ])
 
 const PRIVACY_KEYS = [
-  [/Fabricante da câmera|Modelo da câmera|tiff:Make|tiff:Model/, 'Identifica o aparelho (marca/modelo)'],
+  [/Fabricante da câmera|Modelo da câmera|Versão do Android|tiff:Make|tiff:Model/, 'Identifica o aparelho (marca/modelo)'],
   [/Nº de série|SerialNumber|ID único da imagem|ImageUniqueID/, 'Número de série ou ID único do aparelho'],
   [/^Autor|Dono da câmera|Copyright|dc:creator|dc:rights|Contato|Crédito/, 'Nome do autor, dono ou direitos autorais'],
   [/^Data|DateTime|CreateDate|ModifyDate/i, 'Data e hora em que a foto foi tirada/editada'],
   [/Software|CreatorTool|HistorySoftwareAgent/, 'Software usado para criar/editar'],
   [/Cidade|Estado|País|Bairro|City|Country|Location/, 'Localização escrita (cidade/país)'],
+  [/^Trilha de metadados/, 'Trilha de dados de sensores/GPS gravada junto com o vídeo'],
 ]
 
 function analyze(report) {
@@ -482,11 +488,13 @@ function analyze(report) {
 // ---------- API ----------
 
 export async function inspectMetadata(file) {
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  const format = detectFormat(bytes)
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+  const video = detectVideoFormat(head)
+  // Vídeos são lidos em partes; imagens inteiras na memória
+  const bytes = video ? null : new Uint8Array(await file.arrayBuffer())
+  const format = video ?? detectFormat(bytes)
 
   const report = {
-    format,
     entries: [],
     signals: [],
     scanText: [],
@@ -504,11 +512,12 @@ export async function inspectMetadata(file) {
       format: null,
       verdict: 'unknown',
       entries: [],
-      signals: [{ level: 'info', text: 'Formato não suportado para análise (use JPEG, PNG, WebP ou GIF)' }],
+      signals: [{ level: 'info', text: 'Formato não suportado para análise (use JPEG, PNG, WebP, GIF, MP4, MOV, WebM ou MKV)' }],
     }
   }
 
-  if (format === 'jpeg') inspectJpeg(bytes, report)
+  if (video) await inspectVideo(file, video, report)
+  else if (format === 'jpeg') inspectJpeg(bytes, report)
   else if (format === 'png') await inspectPng(bytes, report)
   else if (format === 'webp') inspectWebp(bytes, report)
   else inspectGif(bytes, report)

@@ -1,8 +1,9 @@
-// Remove metadados de imagens direto nos bytes do arquivo (sem recomprimir),
-// para JPEG, PNG, WebP e GIF. Outros formatos são redesenhados em canvas e
-// exportados como PNG.
+// Remove metadados direto nos bytes do arquivo (sem recomprimir), para
+// JPEG, PNG, WebP, GIF e vídeos (ver video.js). Outros formatos de imagem
+// são redesenhados em canvas e exportados como PNG.
 
 import { ascii, concat, detectFormat, gifBlocks, jpegSegments, pngChunks, webpChunks } from './imageFormat'
+import { detectVideoFormat, stripVideo } from './video'
 
 // ---------- JPEG ----------
 
@@ -185,6 +186,13 @@ const STRIPPERS = { jpeg: stripJpeg, png: stripPng, webp: stripWebp, gif: stripG
 const MIME = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }
 
 export async function stripMetadata(file) {
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+  const video = detectVideoFormat(head)
+  if (video) {
+    const result = await stripVideo(file, video)
+    return { ...result, name: file.name, method: 'lossless' }
+  }
+
   const bytes = new Uint8Array(await file.arrayBuffer())
   const format = detectFormat(bytes)
 
@@ -207,6 +215,7 @@ export async function stripMetadata(file) {
       method: 'converted',
     }
   } catch {
+    if (file.type.startsWith('video/')) throw new Error('Formato de vídeo não suportado (use MP4, MOV, M4V, 3GP, WebM ou MKV)')
     throw new Error('Formato não suportado pelo navegador')
   }
 }

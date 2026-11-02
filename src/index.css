@@ -179,7 +179,8 @@ button.secondary:hover {
   opacity: 0.7;
 }
 
-.card img {
+.card img,
+.card video {
   width: 64px;
   height: 64px;
   flex-shrink: 0;

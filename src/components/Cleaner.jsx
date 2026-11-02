@@ -2,7 +2,7 @@ import { useState } from 'react'
 import JSZip from 'jszip'
 import { stripMetadata } from '../lib/stripMetadata'
 import { useImageQueue } from '../useImageQueue'
-import Dropzone from './Dropzone'
+import Dropzone, { Preview } from './Dropzone'
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
@@ -47,8 +47,9 @@ export default function Cleaner({ onInspect }) {
       const zip = new JSZip()
       const used = new Set()
       for (const item of done) zip.file(uniqueName(item.result.name, used), item.result.blob)
-      const blob = await zip.generateAsync({ type: 'blob' })
-      downloadBlob(blob, 'imagens-sem-metadados.zip')
+      // Sem compressão: imagens e vídeos já são comprimidos
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' })
+      downloadBlob(blob, 'arquivos-sem-metadados.zip')
     } finally {
       setZipping(false)
     }
@@ -60,7 +61,7 @@ export default function Cleaner({ onInspect }) {
 
   return (
     <>
-      <Dropzone count={items.length} onFiles={addFiles} hint="JPEG, PNG, WebP e GIF sem perda de qualidade" />
+      <Dropzone count={items.length} onFiles={addFiles} hint="Imagens (JPEG, PNG, WebP, GIF) e vídeos (MP4, MOV, WebM, MKV) sem perda de qualidade" />
 
       {warning && <p className="warning">{warning}</p>}
 
@@ -86,7 +87,7 @@ export default function Cleaner({ onInspect }) {
           <ul className="grid">
             {items.map((item) => (
               <li key={item.id} className={`card ${item.status}`}>
-                <img src={item.preview} alt="" />
+                <Preview item={item} />
                 <div className="info">
                   <span className="name" title={item.file.name}>
                     {item.file.name}
@@ -112,7 +113,7 @@ export default function Cleaner({ onInspect }) {
                   {item.status === 'done' && (
                     <button
                       className="icon"
-                      title="Baixar esta imagem"
+                      title="Baixar este arquivo"
                       onClick={() => downloadBlob(item.result.blob, item.result.name)}
                     >
                       ↓
