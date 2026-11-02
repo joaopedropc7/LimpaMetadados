@@ -37,16 +37,26 @@ function downloadBlob(blob, name) {
 export default function Cleaner({ onInspect }) {
   const { items, warning, addFiles, removeItem, clearAll } = useImageQueue(stripMetadata)
   const [zipping, setZipping] = useState(false)
+  const [renumber, setRenumber] = useState(false)
 
   const done = items.filter((i) => i.status === 'done')
   const processing = items.some((i) => i.status === 'processing')
+
+  // Nome final de cada arquivo: original ou sequência 01, 02… na ordem da lista
+  const digits = Math.max(2, String(done.length).length)
+  const outputNames = new Map(
+    done.map((item, i) => {
+      const ext = item.result.name.match(/\.[^.]+$/)?.[0] ?? ''
+      return [item.id, renumber ? String(i + 1).padStart(digits, '0') + ext.toLowerCase() : item.result.name]
+    }),
+  )
 
   async function downloadZip() {
     setZipping(true)
     try {
       const zip = new JSZip()
       const used = new Set()
-      for (const item of done) zip.file(uniqueName(item.result.name, used), item.result.blob)
+      for (const item of done) zip.file(uniqueName(outputNames.get(item.id), used), item.result.blob)
       // Sem compressão: imagens e vídeos já são comprimidos
       const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' })
       downloadBlob(blob, 'arquivos-sem-metadados.zip')
@@ -56,7 +66,7 @@ export default function Cleaner({ onInspect }) {
   }
 
   function inspectCleaned() {
-    onInspect(done.map((i) => new File([i.result.blob], i.result.name, { type: i.result.blob.type })))
+    onInspect(done.map((i) => new File([i.result.blob], outputNames.get(i.id), { type: i.result.blob.type })))
   }
 
   return (
@@ -68,9 +78,15 @@ export default function Cleaner({ onInspect }) {
       {items.length > 0 && (
         <>
           <div className="toolbar">
-            <span>
-              {done.length} de {items.length} prontas
-            </span>
+            <div className="toolbar-left">
+              <span>
+                {done.length} de {items.length} prontas
+              </span>
+              <label className="checkbox">
+                <input type="checkbox" checked={renumber} onChange={(e) => setRenumber(e.target.checked)} />
+                Renomear em sequência (01, 02, 03…)
+              </label>
+            </div>
             <div className="actions">
               <button className="secondary" onClick={clearAll}>
                 Limpar lista
@@ -99,6 +115,7 @@ export default function Cleaner({ onInspect }) {
                       <span className="muted">
                         {formatSize(item.file.size)} → {formatSize(item.result.blob.size)}
                       </span>
+                      {renumber && <span className="rename">Salvo como {outputNames.get(item.id)}</span>}
                       <span className="tags">
                         {item.result.removed.length > 0 ? (
                           item.result.removed.map((r) => <em key={r}>{r}</em>)
@@ -114,7 +131,7 @@ export default function Cleaner({ onInspect }) {
                     <button
                       className="icon"
                       title="Baixar este arquivo"
-                      onClick={() => downloadBlob(item.result.blob, item.result.name)}
+                      onClick={() => downloadBlob(item.result.blob, outputNames.get(item.id))}
                     >
                       ↓
                     </button>

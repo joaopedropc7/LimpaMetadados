@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export const MAX_FILES = 20
+export const MAX_FILES = 30
 
 const isImage = (f) => f.type.startsWith('image/') || /\.(heic|heif|avif)$/i.test(f.name)
 const isVideo = (f) => f.type.startsWith('video/') || /\.(mp4|m4v|mov|3gp|webm|mkv)$/i.test(f.name)
